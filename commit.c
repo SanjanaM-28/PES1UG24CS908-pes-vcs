@@ -224,5 +224,6 @@ int commit_create(const char *message, ObjectID *commit_id_out) {
     }
     free(data);
     
-    return 0; // Skeleton return
+    // 5. Update HEAD to point to the new commit
+    return head_update(commit_id_out);
 }
