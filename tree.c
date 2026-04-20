@@ -172,7 +172,18 @@ static int write_tree_level(const Index *index, const char *prefix, ObjectID *id
                 }
             }
             if (seen) continue;
-            // Next: We will trigger recursion here
+            char child_prefix[512];
+            snprintf(child_prefix, sizeof(child_prefix), "%s%s/", prefix, dirname);
+
+            ObjectID child_id;
+            // Recurse to build the child tree first
+            if (write_tree_level(index, child_prefix, &child_id) != 0) return -1;
+
+            if (tree.count >= MAX_TREE_ENTRIES) return -1;
+            TreeEntry *te = &tree.entries[tree.count++];
+            te->mode = MODE_DIR;
+            te->hash = child_id; // Link to the child tree's hash
+            snprintf(te->name, sizeof(te->name), "%s", dirname);
         }
     }
     return 0; 
