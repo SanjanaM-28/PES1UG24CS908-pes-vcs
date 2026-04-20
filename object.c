@@ -91,7 +91,20 @@ int object_exists(const ObjectID *id) {
 //   - fsync              : flushing the file descriptor to disk
 //   - rename             : atomically moving the temp file to the final path
 //
+int object_write(ObjectType type, const void *data, size_t len, ObjectID *id_out) {
+    const char *type_str = (type == OBJ_BLOB) ? "blob" : (type == OBJ_TREE) ? "tree" : "commit";
+    char header[64];
+    int header_len = sprintf(header, "%s %zu", type_str, len) + 1;
 
+    size_t total_size = header_len + len;
+    unsigned char *full_obj = malloc(total_size);
+    memcpy(full_obj, header, header_len);
+    memcpy(full_obj + header_len, data, len);
+
+    compute_hash(full_obj, total_size, id_out);
+    free(full_obj);
+    return 0; 
+}
 //
 // Read an object from the store.
 //
