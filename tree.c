@@ -196,17 +196,55 @@ static int write_tree_level(const Index *index, const char *prefix, ObjectID *id
     
     return rc;
 }
+
+// ─── 1. Finishing load_index_for_tree ───
+// Replace the start we made in Commit 4 with the full loop:
 static int load_index_for_tree(Index *index) {
     index->count = 0;
-
-    // Open the staging area file
     FILE *f = fopen(INDEX_FILE, "r");
     if (!f) {
-        if (errno == ENOENT) return 0; // No index yet is okay
+        if (errno == ENOENT) return 0;
         return -1;
     }
-    
-    // (We will finish the parsing loop in the next commit)
+
+    while (index->count < MAX_INDEX_ENTRIES) {
+        unsigned int mode, size;
+        char hex[HASH_HEX_SIZE + 1], path[512];
+        unsigned long long mtime;
+
+        // Parse: mode, hash, mtime, size, and path
+        int n = fscanf(f, "%o %64s %llu %u %511[^\n]\n", &mode, hex, &mtime, &size, path);
+        if (n == EOF) break;
+        if (n != 5) {
+            fclose(f);
+            return -1;
+        }
+
+        IndexEntry *e = &index->entries[index->count];
+        e->mode = mode;
+        e->mtime_sec = mtime;
+        e->size = size;
+        snprintf(e->path, sizeof(e->path), "%s", path);
+        
+        // Convert the hex string back to binary for the ObjectID
+        if (hex_to_hash(hex, &e->hash) != 0) {
+            fclose(f);
+            return -1;
+        }
+        index->count++;
+    }
     fclose(f);
     return 0;
+}
+
+// ─── 2. Final API Entry Point ───
+int tree_from_index(ObjectID *id_out) {
+    if (!id_out) return -1;
+
+    Index index;
+    // Load staged files from disk
+    if (load_index_for_tree(&index) != 0) return -1;
+
+    // Start the recursive tree building from the root (empty prefix)
+    return write_tree_level(&index, "", id_out);
 }
