@@ -163,5 +163,31 @@ int object_read(const ObjectID *id, ObjectType *type_out, void **data_out, size_
     if (memcmp(id->hash, actual_id.hash, HASH_SIZE) != 0) {
         free(buffer); return -1;
     }
-    return 0;
+// 1. Find the '\0' that separates the header from the data
+    char *null_byte = memchr((char*)buffer, '\0', total_size);
+    if (!null_byte) {
+        free(buffer);
+        return -1;
+    }
+
+    // 2. Identify the Object Type from the header string
+    if (strncmp((char*)buffer, "blob", 4) == 0) *type_out = OBJ_BLOB;
+    else if (strncmp((char*)buffer, "tree", 4) == 0) *type_out = OBJ_TREE;
+    else if (strncmp((char*)buffer, "commit", 6) == 0) *type_out = OBJ_COMMIT;
+
+    // 3. Calculate lengths and extract the data portion
+    int header_len = (null_byte - (char*)buffer) + 1;
+    *len_out = total_size - header_len;
+    
+    // 4. Allocate a new buffer for the caller and copy the data into it
+    *data_out = malloc(*len_out);
+    if (!*data_out) {
+        free(buffer);
+        return -1;
+    }
+    memcpy(*data_out, null_byte + 1, *len_out);
+
+    // 5. Clean up the temporary full-object buffer
+    free(buffer);
+    return 0; 
 }
