@@ -186,5 +186,27 @@ static int write_tree_level(const Index *index, const char *prefix, ObjectID *id
             snprintf(te->name, sizeof(te->name), "%s", dirname);
         }
     }
-    return 0; 
+    void *raw = NULL;
+    size_t raw_len = 0;
+    if (tree_serialize(&tree, &raw, &raw_len) != 0) return -1;
+
+    // Save the tree to .pes/objects using the logic from Phase 1
+    int rc = object_write(OBJ_TREE, raw, raw_len, id_out);
+    free(raw);
+    
+    return rc;
+}
+static int load_index_for_tree(Index *index) {
+    index->count = 0;
+
+    // Open the staging area file
+    FILE *f = fopen(INDEX_FILE, "r");
+    if (!f) {
+        if (errno == ENOENT) return 0; // No index yet is okay
+        return -1;
+    }
+    
+    // (We will finish the parsing loop in the next commit)
+    fclose(f);
+    return 0;
 }
