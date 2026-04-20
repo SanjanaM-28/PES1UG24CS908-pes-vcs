@@ -158,6 +158,22 @@ static int write_tree_level(const Index *index, const char *prefix, ObjectID *id
             te->hash = ie->hash;
             snprintf(te->name, sizeof(te->name), "%s", rest);
         }
+	else {
+            size_t dlen = (size_t)(slash - rest);
+            char dirname[256];
+            memcpy(dirname, rest, dlen);
+            dirname[dlen] = '\0';
+
+            // Deduplication: Don't process the same folder twice
+            int seen = 0;
+            for (int t = 0; t < tree.count; t++) {
+                if (strcmp(tree.entries[t].name, dirname) == 0 && tree.entries[t].mode == MODE_DIR) {
+                    seen = 1; break;
+                }
+            }
+            if (seen) continue;
+            // Next: We will trigger recursion here
+        }
     }
     return 0; 
 }
