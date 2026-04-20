@@ -35,6 +35,8 @@ IndexEntry* index_find(Index *index, const char *path) {
     return NULL;
 }
 
+
+
 // Remove a file from the index.
 // Returns 0 on success, -1 if path not in index.
 int index_remove(Index *index, const char *path) {
@@ -134,12 +136,30 @@ int index_status(const Index *index) {
 //   - hex_to_hash                      : converting the parsed string to ObjectID
 //
 // Returns 0 on success, -1 on error.
+
 int index_load(Index *index) {
-    // TODO: Implement index loading
-    // (See Lab Appendix for logical steps)
-    (void)index;
-    return -1;
+    index->count = 0;
+    FILE *f = fopen(INDEX_FILE, "r");
+    if (!f) return (errno == ENOENT) ? 0 : -1;
+
+    while (index->count < MAX_INDEX_ENTRIES) {
+        unsigned int mode, size;
+        char hex[HASH_HEX_SIZE + 1], path[512];
+        unsigned long long mtime;
+
+        if (fscanf(f, "%o %64s %llu %u %511[^\n]\n", &mode, hex, &mtime, &size, path) != 5) break;
+
+        IndexEntry *e = &index->entries[index->count++];
+        e->mode = mode;
+        e->mtime_sec = mtime;
+        e->size = size;
+        strncpy(e->path, path, sizeof(e->path) - 1);
+        hex_to_hash(hex, &e->hash);
+    }
+    fclose(f);
+    return 0;
 }
+
 
 // Save the index to .pes/index atomically.
 //
