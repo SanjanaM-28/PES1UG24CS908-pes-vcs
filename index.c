@@ -24,6 +24,10 @@
 #include <unistd.h>
 #include <dirent.h>
 
+static int compare_index_entries(const void *a, const void *b) {
+    return strcmp(((const IndexEntry *)a)->path, ((const IndexEntry *)b)->path);
+}
+
 // ─── PROVIDED ────────────────────────────────────────────────────────────────
 
 // Find an index entry by path (linear scan).
@@ -178,6 +182,8 @@ int index_save(const Index *index) {
     FILE *f = fopen(temp, "w");
     if (!f) return -1;
 
+    qsort((void*)index->entries, index->count, sizeof(IndexEntry), compare_index_entries);
+
     for (int i = 0; i < index->count; i++) {
         const IndexEntry *e = &index->entries[i];
         char hex[HASH_HEX_SIZE + 1];
@@ -226,5 +232,5 @@ int index_add(Index *index, const char *path) {
     e->mtime_sec = st.st_mtime;
     e->size = st.st_size;
     e->hash = id;
-    return 0; 
+    return index_save(index); 
 }
