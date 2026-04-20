@@ -214,8 +214,13 @@ int index_add(Index *index, const char *path) {
 
     FILE *f = fopen(path, "rb");
     if (!f) return -1;
-    void *data = malloc(st.st_size);
-    fread(data, 1, st.st_size, f);
+
+void *data = malloc(st.st_size > 0 ? st.st_size : 1); 
+    if (st.st_size > 0) {
+        if (fread(data, 1, st.st_size, f) != (size_t)st.st_size) {
+            free(data); fclose(f); return -1;
+        }
+    }
     fclose(f);
 
     ObjectID id;
