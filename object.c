@@ -103,6 +103,16 @@ int object_write(ObjectType type, const void *data, size_t len, ObjectID *id_out
 
     compute_hash(full_obj, total_size, id_out);
     free(full_obj);
+
+    char path[512], dir[512];
+    object_path(id_out, path, sizeof(path));
+    
+    strcpy(dir, path);
+    char *last_slash = strrchr(dir, '/');
+    if (last_slash) *last_slash = '\0';
+    
+    mkdir(OBJECTS_DIR, 0755);
+    mkdir(dir, 0755);
     return 0; 
 }
 //
