@@ -10,11 +10,16 @@
 //   "100644 hello.txt\0" followed by 32 raw bytes of SHA-256
 
 #include "tree.h"
+#include "index.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <dirent.h>
 #include <sys/stat.h>
+#include <errno.h>
+
+// Forward declaration (implemented in object.c)
+int object_write(ObjectType type, const void *data, size_t len, ObjectID *id_out);
 
 // ─── Mode Constants ─────────────────────────────────────────────────────────
 
@@ -129,9 +134,30 @@ int tree_serialize(const Tree *tree, void **data_out, size_t *len_out) {
 //   - object_write    : save that binary buffer to the store as OBJ_TREE
 //
 // Returns 0 on success, -1 on error.
-int tree_from_index(ObjectID *id_out) {
-    // TODO: Implement recursive tree building
-    // (See Lab Appendix for logical steps)
-    (void)id_out;
-    return -1;
+// At the bottom of tree.c, implement the first part of the recursive helper
+static int write_tree_level(const Index *index, const char *prefix, ObjectID *id_out) {
+    Tree tree;
+    tree.count = 0;
+    size_t prefix_len = strlen(prefix);
+
+    for (int i = 0; i < index->count; i++) {
+        const IndexEntry *ie = &index->entries[i];
+
+        // Only look at files that start with our current directory prefix
+        if (strncmp(ie->path, prefix, prefix_len) != 0) continue;
+
+        const char *rest = ie->path + prefix_len;
+        if (*rest == '\0') continue;
+
+        const char *slash = strchr(rest, '/');
+        // Logic: If there is no slash, it's a file in this folder
+        if (!slash) {
+            if (tree.count >= MAX_TREE_ENTRIES) return -1;
+            TreeEntry *te = &tree.entries[tree.count++];
+            te->mode = ie->mode;
+            te->hash = ie->hash;
+            snprintf(te->name, sizeof(te->name), "%s", rest);
+        }
+    }
+    return 0; 
 }
